@@ -17,8 +17,8 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
 
-const BASE_URL         = process.env.DRAFT_BASE_URL || 'http://localhost:3000';
-const SERVER_URL       = BASE_URL;
+const BASE_URL   = process.env.DRAFT_BASE_URL || 'http://localhost:3000';
+const SERVER_URL = `http://localhost:${process.env.PORT || 3000}`;
 const DRAFT_CHANNEL_ID = '1486086211742470214';
 const ADMIN_CHANNEL_ID = '1486087431504527483';
 
