@@ -54,6 +54,7 @@ function createDraftState(teamBlueName = 'Blue Team', teamRedName = 'Red Team') 
     slots: {},             // slot → { champion, lockedAt }
     hovering: { blue: null, red: null },
     status: 'waiting',    // waiting | active | finished
+    paused: false,
     timer: null,          // not persisted, just for reference
     timerValue: 30,
     blueReady: false,
@@ -165,6 +166,21 @@ app.post('/api/draft/:draftId/admin/set-step', (req, res) => {
   res.json({ ok: true, state: sanitizeState(draft.state) });
 });
 
+// ─── Admin: pause / resume ───────────────────────────────────────────────────
+app.post('/api/draft/:draftId/admin/pause-toggle', (req, res) => {
+  const { adminToken } = req.body;
+  const draft = drafts.get(req.params.draftId);
+  if (!draft) return res.status(404).json({ error: 'Draft not found' });
+  if (!adminToken || adminToken !== draft.adminToken)
+    return res.status(403).json({ error: 'Invalid admin token' });
+  if (draft.state.status !== 'active')
+    return res.status(400).json({ error: 'Draft is not active' });
+
+  draft.state.paused = !draft.state.paused;
+  broadcast(draft, { type: 'state', state: sanitizeState(draft.state) });
+  res.json({ ok: true, paused: draft.state.paused });
+});
+
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://localhost');
@@ -230,7 +246,7 @@ function handleMessage(draft, ws, msg, team, role) {
     if (!msg.champion) return;
 
     // Check champion not already used
-    const usedChampions = Object.values(state.slots).map(s => s.champion);
+    const usedChampions = Object.values(state.slots).map(s => s.champion).filter(Boolean);
     if (usedChampions.includes(msg.champion)) {
       send(ws, { type: 'error', message: 'Champion already banned or picked' });
       return;
@@ -260,6 +276,7 @@ function startTimer(draft) {
   clearDraftTimer(draft);
 
   draft._timerInterval = setInterval(() => {
+    if (draft.state.paused) return; // timer gelé
     draft.state.timerValue -= 1;
     broadcast(draft, { type: 'timer', value: draft.state.timerValue });
 
@@ -283,12 +300,8 @@ function autoLock(draft) {
   const currentStep = state.sequence[state.step];
   if (!currentStep) return;
 
-  const usedChampions = new Set(Object.values(state.slots).map(s => s.champion));
-  // Pick first champion from a fallback list not yet used
-  const fallback = ['Aatrox','Ahri','Akali','Alistar','Amumu','Annie','Ashe','Blitzcrank','Brand','Caitlyn'];
-  const champion = fallback.find(c => !usedChampions.has(c)) || `Unknown-${state.step}`;
-
-  state.slots[currentStep.slot] = { champion, lockedAt: Date.now(), autoLocked: true };
+  // Slot laissé vide (aucun champion sélectionné dans les temps)
+  state.slots[currentStep.slot] = { champion: null, lockedAt: Date.now(), autoLocked: true };
   state.hovering[currentStep.team] = null;
   state.step += 1;
 
@@ -312,6 +325,7 @@ function sanitizeState(state) {
     slots:        state.slots,
     hovering:     state.hovering,
     status:       state.status,
+    paused:       state.paused,
     timerValue:   state.timerValue,
     blueReady:    state.blueReady,
     redReady:     state.redReady,

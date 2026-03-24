@@ -69,6 +69,12 @@ function render() {
   document.getElementById('btn-prev-step').disabled = !draftState || draftState.step <= 0;
   document.getElementById('btn-next-step').disabled = !draftState || draftState.step >= draftState.sequence.length;
 
+  const btnPause = document.getElementById('btn-pause');
+  const isPaused = draftState.paused;
+  btnPause.textContent   = isPaused ? '▶️ Reprendre' : '⏸ Pause';
+  btnPause.classList.toggle('active', isPaused);
+  btnPause.disabled      = draftState.status !== 'active';
+
   renderSlotList('blue-bans-list',  'blue', 'ban');
   renderSlotList('blue-picks-list', 'blue', 'pick');
   renderSlotList('red-bans-list',   'red',  'ban');
@@ -184,6 +190,21 @@ document.getElementById('btn-prev-step').addEventListener('click', () => {
 });
 document.getElementById('btn-next-step').addEventListener('click', () => {
   if (draftState && draftState.step < draftState.sequence.length) setStep(draftState.step + 1);
+});
+document.getElementById('btn-pause').addEventListener('click', async () => {
+  const r = await fetch(`/api/draft/${draftId}/admin/pause-toggle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminToken }),
+  });
+  const data = await r.json();
+  if (data.ok) {
+    await loadState();
+    render();
+    showToast(data.paused ? '⏸ Draft en pause' : '▶️ Draft repris', 'ok');
+  } else {
+    showToast(`Erreur : ${data.error}`, 'err');
+  }
 });
 document.getElementById('btn-refresh').addEventListener('click', async () => {
   await loadState();

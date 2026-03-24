@@ -125,6 +125,7 @@ const redTeamNameEl  = document.getElementById('red-team-name');
 const phaseLabel     = document.getElementById('phase-label');
 const timerDisplay   = document.getElementById('timer-display');
 const currentAction  = document.getElementById('current-action');
+const pauseBanner    = document.getElementById('pause-banner');
 
 const blueBansRow    = document.getElementById('blue-bans-row');
 const redBansRow     = document.getElementById('red-bans-row');
@@ -212,6 +213,10 @@ function handleServerMessage(msg) {
     timerDisplay.textContent = msg.value;
     timerDisplay.classList.toggle('urgent', msg.value <= 10);
   }
+  if (msg.type === 'state' && msg.state.paused !== undefined) {
+    timerDisplay.classList.toggle('paused', msg.state.paused);
+    if (pauseBanner) pauseBanner.classList.toggle('hidden', !msg.state.paused);
+  }
 }
 
 // ─── Render state ─────────────────────────────────────────────────────────────
@@ -220,6 +225,24 @@ function renderState() {
 
   blueTeamNameEl.textContent = draftState.teamBlueName;
   redTeamNameEl.textContent  = draftState.teamRedName;
+
+  // Bannière pause (null-guard si HTML en cache)
+  timerDisplay.classList.toggle('paused', !!draftState.paused);
+  if (pauseBanner) pauseBanner.classList.toggle('hidden', !draftState.paused);
+
+  // Message d'attente dans l'overlay
+  if (draftState.status === 'waiting') {
+    const blueOk = draftState.blueReady;
+    const redOk  = draftState.redReady;
+    if (blueOk && !redOk) {
+      waitingMsg.textContent = `✅ ${draftState.teamBlueName} est prêt — en attente de ${draftState.teamRedName}…`;
+    } else if (!blueOk && redOk) {
+      waitingMsg.textContent = `✅ ${draftState.teamRedName} est prêt — en attente de ${draftState.teamBlueName}…`;
+    } else if (blueOk && redOk) {
+      waitingMsg.textContent = '⚡ Les deux équipes sont prêtes !';
+    }
+    if (blueOk || redOk) waitingMsg.classList.remove('hidden');
+  }
 
   const step = draftState.sequence[draftState.step];
   if (step) {
@@ -288,21 +311,26 @@ function renderBanSlots() {
     const el = document.getElementById(`slot-ban-${parts[1]}-${parts[2]}`);
     if (!el) continue;
     el.classList.add('filled');
-    const champ = findChamp(slotData.champion);
+    const champ = slotData.champion ? findChamp(slotData.champion) : null;
     if (champ) {
       el.innerHTML = `<img src="${champIcon(champ.id, ddVersion)}" alt="${champ.name}" title="${champ.name}" /><div class="ban-x">${SVG_BAN_X}</div>`;
-    } else {
+    } else if (slotData.champion) {
       el.innerHTML = `<div class="ban-x">${SVG_BAN_X}</div>`;
+    } else {
+      // Timeout sans sélection
+      el.innerHTML = `<div class="ban-x">${SVG_BAN_X}</div><div class="slot-vide">VIDE</div>`;
     }
     // Animate if newly banned
     if (!animatedSlots.has(slotKey)) {
       animatedSlots.add(slotKey);
       el.classList.add('ban-in');
       el.addEventListener('animationend', () => el.classList.remove('ban-in'), { once: true });
-      const champEl = championGrid.querySelector(`[data-id="${slotData.champion}"]`);
-      if (champEl) {
-        champEl.classList.add('banned-anim');
-        champEl.addEventListener('animationend', () => champEl.classList.remove('banned-anim'), { once: true });
+      if (slotData.champion) {
+        const champEl = championGrid.querySelector(`[data-id="${slotData.champion}"]`);
+        if (champEl) {
+          champEl.classList.add('banned-anim');
+          champEl.addEventListener('animationend', () => champEl.classList.remove('banned-anim'), { once: true });
+        }
       }
     }
   }
@@ -349,7 +377,7 @@ function renderPickSlots() {
     const parts = slotKey.split('-');
     const el    = document.getElementById(`slot-pick-${parts[1]}-${parts[2]}`);
     if (!el) continue;
-    const champ = findChamp(slotData.champion);
+    const champ = slotData.champion ? findChamp(slotData.champion) : null;
     if (champ) {
       el.innerHTML = `
         <img src="${champSplash(champ.id)}" alt="${champ.name}" />
@@ -359,12 +387,19 @@ function renderPickSlots() {
         animatedSlots.add(slotKey);
         el.classList.add('pick-in');
         el.addEventListener('animationend', () => el.classList.remove('pick-in'), { once: true });
-        // Flash l'icône dans la grille (comme le ban)
         const champGridEl = championGrid.querySelector(`[data-id="${slotData.champion}"]`);
         if (champGridEl) {
           champGridEl.classList.add('picked-anim');
           champGridEl.addEventListener('animationend', () => champGridEl.classList.remove('picked-anim'), { once: true });
         }
+      }
+    } else {
+      // Timeout sans sélection — afficher VIDE (toujours, pas seulement la 1ère fois)
+      el.innerHTML = `
+        <div class="pick-number">${Number(parts[2]) + 1}</div>
+        <div class="empty-label slot-vide">VIDE</div>`;
+      if (!animatedSlots.has(slotKey)) {
+        animatedSlots.add(slotKey);
       }
     }
   }
@@ -438,7 +473,7 @@ function updateChampionAvailability() {
     el.classList.remove('banned', 'picked', 'selected', 'dimmed');
 
     for (const [slotKey, slotData] of Object.entries(draftState.slots)) {
-      if (slotData.champion === id) {
+      if (slotData.champion && slotData.champion === id) {
         el.classList.add(slotKey.startsWith('ban-') ? 'banned' : 'picked');
         return;
       }
@@ -488,7 +523,13 @@ function updateLockButton() {
   if (!draftState) return;
   const step = draftState.sequence[draftState.step];
   const isMyTurn = step && step.team === myTeam && myTeam !== 'spectator' && draftState.status === 'active';
-  btnLock.disabled = !(isMyTurn && selectedChamp);
+  const blocked  = !isMyTurn || !selectedChamp || !!draftState.paused;
+  btnLock.disabled = blocked;
+  if (draftState.paused && isMyTurn) {
+    btnLock.textContent = '⏸ Draft en pause';
+  } else {
+    btnLock.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true" style="vertical-align:middle;margin-right:6px;flex-shrink:0"><rect x="4" y="9" width="8" height="6" rx="1.5"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5.5 9V7a2.5 2.5 0 015 0v2"/></svg>Verrouiller`;
+  }
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
