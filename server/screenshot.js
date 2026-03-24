@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 
 async function screenshotDraft(url) {
   const browser = await puppeteer.launch({
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
   try {

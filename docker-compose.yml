@@ -1,0 +1,12 @@
+services:
+  satdraft:
+    build: .
+    container_name: satdraft
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DRAFT_BASE_URL=${DRAFT_BASE_URL}
+      - PORT=3000
