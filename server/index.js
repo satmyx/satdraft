@@ -4,6 +4,10 @@ const { createServer } = require('http');
 const { WebSocketServer, WebSocket } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const { client: discordClient } = require('../bot/index.js');
+const { screenshotDraft } = require('./screenshot');
+
+const RESULT_CHANNEL_ID = '1485687757685653524';
 
 const app = express();
 const server = createServer(app);
@@ -71,6 +75,7 @@ app.post('/api/draft/create', (req, res) => {
   const adminToken = uuidv4();
 
   drafts.set(draftId, {
+    draftId,
     state: createDraftState(teamBlueName || 'Blue Team', teamRedName || 'Red Team'),
     clients: new Map(),
     blueToken,
@@ -261,6 +266,7 @@ function handleMessage(draft, ws, msg, team, role) {
     if (state.step >= state.sequence.length) {
       state.status = 'finished';
       broadcast(draft, { type: 'state', state: sanitizeState(state) });
+      sendDraftResult(draft);
       return;
     }
 
@@ -312,6 +318,7 @@ function autoLock(draft) {
   }
 
   broadcast(draft, { type: 'state', state: sanitizeState(state) });
+  if (state.status === 'finished') sendDraftResult(draft);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -341,6 +348,23 @@ function send(ws, data) {
 function broadcast(draft, data) {
   for (const [ws] of draft.clients) {
     send(ws, data);
+  }
+}
+
+// ─── Send draft result screenshot to Discord ─────────────────────────────────
+async function sendDraftResult(draft) {
+  try {
+    const port = process.env.PORT || 3000;
+    const url  = `http://localhost:${port}/draft/${draft.draftId}`;
+    const screenshot = await screenshotDraft(url);
+    const channel = await discordClient.channels.fetch(RESULT_CHANNEL_ID);
+    await channel.send({
+      content: `✅ **Draft terminée** — ${draft.state.teamBlueName} vs ${draft.state.teamRedName}`,
+      files: [{ attachment: screenshot, name: 'draft-result.png' }],
+    });
+    console.log(`[Bot] Screenshot draft ${draft.draftId} envoyé dans le channel ${RESULT_CHANNEL_ID}`);
+  } catch (err) {
+    console.error('[Bot] Erreur envoi screenshot draft:', err);
   }
 }
 
