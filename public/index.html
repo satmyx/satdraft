@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LoL Draft</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- ── Overlay d'attente ── -->
+  <div id="overlay" class="overlay">
+    <div class="overlay-box">
+      <h1>⚔️ League of Legends Draft</h1>
+      <div id="overlay-status">Connexion en cours…</div>
+      <div id="team-badge"></div>
+      <button id="btn-ready" class="btn-ready hidden">Je suis prêt !</button>
+      <div id="waiting-msg" class="hidden">En attente de l'autre équipe…</div>
+    </div>
+  </div>
+
+  <!-- ── Interface principale ── -->
+  <div id="app" class="hidden">
+    <header>
+      <div class="team-header blue">
+        <span id="blue-team-name">Blue Team</span>
+      </div>
+      <div class="center-header">
+        <div id="phase-label">Phase 1 – Bans</div>
+        <div id="timer-display">30</div>
+        <div id="current-action"></div>
+      </div>
+      <div class="team-header red">
+        <span id="red-team-name">Red Team</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- Bans section -->
+      <section class="bans-section">
+        <div class="bans blue-bans" id="blue-bans-row">
+          <!-- ban slots 0-4 injected by JS -->
+        </div>
+        <div class="bans red-bans" id="red-bans-row">
+          <!-- ban slots 0-4 injected by JS -->
+        </div>
+      </section>
+
+      <!-- Picks section -->
+      <section class="picks-section">
+        <div class="picks blue-picks" id="blue-picks-col">
+          <!-- pick slots injected by JS -->
+        </div>
+
+        <!-- Champion grid -->
+        <div class="champion-pool" id="champion-pool">
+          <div class="role-filters" id="role-filters">
+            <button class="role-btn active" data-role="ALL">
+              <svg viewBox="0 0 14 14" fill="currentColor" width="12" height="12" aria-hidden="true"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg>
+              <span>Tous</span>
+            </button>
+            <button class="role-btn" data-role="TOP">
+              <svg viewBox="0 0 14 14" fill="currentColor" width="12" height="12" aria-hidden="true"><path d="M7 1L13 4v4c0 3-2.7 5.2-6 5.8C3.7 13.2 1 11 1 8V4L7 1z"/></svg>
+              <span>TOP</span>
+            </button>
+            <button class="role-btn" data-role="JGL">
+              <svg viewBox="0 0 14 14" fill="currentColor" width="12" height="12" aria-hidden="true"><ellipse cx="4.5" cy="2.2" rx="1.4" ry="1.8"/><ellipse cx="9.5" cy="2.2" rx="1.4" ry="1.8"/><ellipse cx="2" cy="5.8" rx="1.3" ry="1.7"/><ellipse cx="12" cy="5.8" rx="1.3" ry="1.7"/><ellipse cx="7" cy="9.8" rx="3" ry="2.8"/></svg>
+              <span>JGL</span>
+            </button>
+            <button class="role-btn" data-role="MID">
+              <svg viewBox="0 0 14 14" fill="currentColor" width="12" height="12" aria-hidden="true"><path d="M9.5 1L2.5 8H7L5 13 12.5 5.5H8.5z"/></svg>
+              <span>MID</span>
+            </button>
+            <button class="role-btn" data-role="ADC">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2"/></svg>
+              <span>ADC</span>
+            </button>
+            <button class="role-btn" data-role="SUP">
+              <svg viewBox="0 0 14 14" fill="currentColor" width="12" height="12" aria-hidden="true"><path d="M7 12.8S1 9.2 1 5.5a3 3 0 016 0 3 3 0 016 0C13 9.2 7 12.8 7 12.8z"/></svg>
+              <span>SUP</span>
+            </button>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="search-input" placeholder="🔍  Rechercher un champion…" autocomplete="off" />
+          </div>
+          <div id="champion-grid"></div>
+        </div>
+
+        <div class="picks red-picks" id="red-picks-col">
+          <!-- pick slots injected by JS -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Lock button -->
+    <footer>
+      <div class="footer-inner">
+        <div id="hover-preview-footer"></div>
+        <button id="btn-lock" class="btn-lock" disabled>
+          <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true" style="vertical-align:middle;margin-right:6px;flex-shrink:0"><rect x="4" y="9" width="8" height="6" rx="1.5"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5.5 9V7a2.5 2.5 0 015 0v2"/></svg>Verrouiller
+        </button>
+        <div id="hover-name"></div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/draft.js"></script>
+</body>
+</html>
