@@ -5,8 +5,15 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    volumes:
+      - .:/app          # Monte le code du repo Git (dev)
+      - /app/node_modules  # Protège node_modules (évite conflits volume)
+    working_dir: /app     # Nécessaire pour npm
+    stdin_open: true      # Pour exec console
+    tty: true
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
       - DRAFT_BASE_URL=${DRAFT_BASE_URL}
       - PORT=3000
+      - NODE_ENV=production  # Ou development
