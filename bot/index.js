@@ -28,6 +28,12 @@ const pendingSelections = new Map();
 // pendingDrafts: draftKey → { blueUserId, redUserId, blueName, redName, initiatorId }
 const pendingDrafts = new Map();
 
+// draftMessages: draftId → Discord Message (public embed "Draft en cours")
+const draftMessages = new Map();
+
+// adminMessages: draftId → Discord Message (lien admin)
+const adminMessages = new Map();
+
 // ─── Create a draft session via internal API ──────────────────────────────────
 async function createDraftSession(teamBlueName, teamRedName) {
   const res = await fetch(`${SERVER_URL}/api/draft/create`, {
@@ -97,13 +103,15 @@ async function finalizeDraft(draftKey) {
       .setURL(draft.spectateUrl),
   );
 
-  await draftChannel.send({ embeds: [publicEmbed], components: [rowSpectate] });
+  const publicMsg = await draftChannel.send({ embeds: [publicEmbed], components: [rowSpectate] });
+  draftMessages.set(draft.draftId, publicMsg);
 
   // Admin link
   const adminChannel = await client.channels.fetch(ADMIN_CHANNEL_ID);
-  await adminChannel.send(
+  const adminMsg = await adminChannel.send(
     `🔧 **Lien Admin** — **${pending.blueName}** vs **${pending.redName}**\n${draft.adminUrl}`,
   );
+  adminMessages.set(draft.draftId, adminMsg);
 
   console.log(`[Bot] Draft finalisée : ${pending.blueName} vs ${pending.redName}`);
 }
@@ -315,5 +323,5 @@ client.on('interactionCreate', async (interaction) => {
 
 // ─── Start bot ────────────────────────────────────────────────────────────────
 client.login(process.env.DISCORD_TOKEN);
-module.exports = { client };
+module.exports = { client, draftMessages, adminMessages };
 

@@ -4,7 +4,7 @@ const { createServer } = require('http');
 const { WebSocketServer, WebSocket } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const { client: discordClient } = require('../bot/index.js');
+const { client: discordClient, draftMessages, adminMessages } = require('../bot/index.js');
 const { screenshotDraft } = require('./screenshot');
 
 const RESULT_CHANNEL_ID = '1485687757685653524';
@@ -363,6 +363,20 @@ async function sendDraftResult(draft) {
       files: [{ attachment: screenshot, name: 'draft-result.png' }],
     });
     console.log(`[Bot] Screenshot draft ${draft.draftId} envoyé dans le channel ${RESULT_CHANNEL_ID}`);
+
+    // Supprimer le message "Draft en cours" du channel draft
+    const publicMsg = draftMessages.get(draft.draftId);
+    if (publicMsg) {
+      await publicMsg.delete().catch(() => {});
+      draftMessages.delete(draft.draftId);
+    }
+
+    // Supprimer le lien admin du channel admin
+    const adminMsg = adminMessages.get(draft.draftId);
+    if (adminMsg) {
+      await adminMsg.delete().catch(() => {});
+      adminMessages.delete(draft.draftId);
+    }
   } catch (err) {
     console.error('[Bot] Erreur envoi screenshot draft:', err);
   }
